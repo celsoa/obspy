@@ -15,7 +15,6 @@ from __future__ import (absolute_import, division, print_function,
 from future.builtins import *  # NOQA
 
 import codecs
-import copy
 import io
 import os
 import sys
@@ -146,9 +145,8 @@ class NRL(object):
         :rtype: str
         """
         datalogger = self.dataloggers
-        datalogger_keys = copy.deepcopy(datalogger_keys)
-        while datalogger_keys:
-            datalogger = datalogger[datalogger_keys.pop(0)]
+        for key in datalogger_keys:
+            datalogger = datalogger[key]
         return self._read_resp(datalogger[1])
 
     def get_sensor_resp(self, sensor_keys):
@@ -159,9 +157,8 @@ class NRL(object):
         :rtype: str
         """
         sensor = self.sensors
-        sensor_keys = copy.deepcopy(sensor_keys)
-        while sensor_keys:
-            sensor = sensor[sensor_keys.pop(0)]
+        for key in sensor_keys:
+            sensor = sensor[key]
         return self._read_resp(sensor[1])
 
     def get_parser(self, datalogger_keys, sensor_keys):
