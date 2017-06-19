@@ -177,7 +177,7 @@ class Parser(object):
             elif os.path.isfile(data):
                 if is_resp(data):
                     # RESP filename
-                    with open(data, 'r') as f:
+                    with open(data, 'r', encoding='ascii') as f:
                         data = f.read()
                     self._parse_resp(data)
                     return
