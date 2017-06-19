@@ -833,13 +833,12 @@ class Parser(object):
         combined = copy.deepcopy(datalogger)
 
         # Replace stage1 blockettes with sensors
-        for b_id, stage1_b in stage1:
-            for i, b in enumerate(combined.stations[0]):
-                if b.id != b_id:
-                    continue
+        for stage1_id, stage1_bloc in stage1:
+            for i, b in enumerate(combined.blockettes[stage1_id]):
                 if hasattr(b, "stage_sequence_number") and \
-                        b.stage_sequence_number == 1:
-                    combined.stations[0][i] = stage1_b
+                           b.stage_sequence_number == 1:
+                    combined.blockettes[stage1_id][i] = stage1_bloc
+
         return combined
 
     def get_response(self, frequency=None, sr=None):
