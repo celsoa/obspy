@@ -172,6 +172,16 @@ def _read_single_hypocenter(lines, coordinate_converter, original_picks):
 
     line = line.rstrip().split('"')[1]
     signature, version, date, time = line.rsplit(" ", 3)
+
+    # get the "3" out of v3 in "NLLoc:v3.03.1" (sorry if ugly)
+    # NOTE the version number is used below to figure if the ou. and oq.
+    # variables should be assigned values. This is a way to read nlloc v3 files
+    # which don't seem to have standard Origin Quality fields. Note that this
+    # is work in progress. For example after reading a catalog the events can't
+    # be plotted, and catalog.py complains about a list index out of range.
+    nver = version.rsplit(sep=':v')[1][0] # from ["['NLLoc", "3', '03', '1']"]
+    nver = int(nver)
+    
     # new NLLoc > 6.0 seems to add prefix 'run:' before date
     if date.startswith('run:'):
         date = date[4:]
@@ -208,22 +218,16 @@ def _read_single_hypocenter(lines, coordinate_converter, original_picks):
         "following original NonLinLoc error statistics line:\nSTATISTICS " +
         lines["STATISTICS"])
 
-    # goto location quality info line
-    line = lines["QML_OriginQuality"].split()
+    if nver > 3:
+        # NOTE for nver == 3 the following will not work
+        # goto location quality info line
+       line = lines["QML_OriginQuality"].split()
 
-    (assoc_phase_count, used_phase_count, assoc_station_count,
-     used_station_count, depth_phase_count) = map(int, line[1:11:2])
-    stderr, az_gap, sec_az_gap = map(float, line[11:17:2])
-    gt_level = line[17]
-    min_dist, max_dist, med_dist = map(float, line[19:25:2])
-
-    # goto location quality info line
-    line = lines["QML_OriginUncertainty"]
-
-    if "COMMENT" in lines:
-        comment = lines["COMMENT"].strip()
-        comment = comment.strip('\'"')
-        comment = comment.strip()
+       (assoc_phase_count, used_phase_count, assoc_station_count,
+               used_station_count, depth_phase_count) = map(int, line[1:11:2])
+       stderr, az_gap, sec_az_gap = map(float, line[11:17:2])
+       gt_level = line[17]
+       min_dist, max_dist, med_dist = map(float, line[19:25:2])
 
     hor_unc, min_hor_unc, max_hor_unc, hor_unc_azim = \
         map(float, line.split()[1:9:2])
@@ -238,7 +242,8 @@ def _read_single_hypocenter(lines, coordinate_converter, original_picks):
     ou = o.origin_uncertainty
     oq = o.quality
     o.comments.append(Comment(text=stats_info_string, force_resource_id=False))
-    event.comments.append(Comment(text=comment, force_resource_id=False))
+    if nver > 3:
+        event.comments.append(Comment(text=comment, force_resource_id=False))
 
     # SIGNATURE field's first item is LOCSIG, which is supposed to be
     # 'Identification of an individual, institiution or other entity'
@@ -283,32 +288,34 @@ def _read_single_hypocenter(lines, coordinate_converter, original_picks):
     o.depth_type = str("from location")
     o.time = time
 
-    ou.horizontal_uncertainty = hor_unc
-    ou.min_horizontal_uncertainty = min_hor_unc
-    ou.max_horizontal_uncertainty = max_hor_unc
-    # values of -1 seem to be used for unset values, set to None
-    for field in ("horizontal_uncertainty", "min_horizontal_uncertainty",
-                  "max_horizontal_uncertainty"):
-        if ou.get(field, -1) == -1:
-            ou[field] = None
-        else:
-            ou[field] *= 1e3  # meters!
-    ou.azimuth_max_horizontal_uncertainty = hor_unc_azim
-    ou.preferred_description = str("uncertainty ellipse")
-    ou.confidence_level = 68  # NonLinLoc in general uses 1-sigma (68%) level
+    if nver > 3:
+        ou.horizontal_uncertainty = hor_unc
+        ou.min_horizontal_uncertainty = min_hor_unc
+        ou.max_horizontal_uncertainty = max_hor_unc
+        # values of -1 seem to be used for unset values, set to None
+        for field in ("horizontal_uncertainty", "min_horizontal_uncertainty",
+                "max_horizontal_uncertainty"):
+            if ou.get(field, -1) == -1:
+                ou[field] = None
+            else:
+                ou[field] *= 1e3  # meters!
+        ou.azimuth_max_horizontal_uncertainty = hor_unc_azim
+        ou.preferred_description = str("uncertainty ellipse")
 
-    oq.standard_error = stderr
-    oq.azimuthal_gap = az_gap
-    oq.secondary_azimuthal_gap = sec_az_gap
-    oq.used_phase_count = used_phase_count
-    oq.used_station_count = used_station_count
-    oq.associated_phase_count = assoc_phase_count
-    oq.associated_station_count = assoc_station_count
-    oq.depth_phase_count = depth_phase_count
-    oq.ground_truth_level = gt_level
-    oq.minimum_distance = kilometer2degrees(min_dist)
-    oq.maximum_distance = kilometer2degrees(max_dist)
-    oq.median_distance = kilometer2degrees(med_dist)
+        oq.standard_error = stderr
+        oq.azimuthal_gap = az_gap
+        oq.secondary_azimuthal_gap = sec_az_gap
+        oq.used_phase_count = used_phase_count
+        oq.used_station_count = used_station_count
+        oq.associated_phase_count = assoc_phase_count
+        oq.associated_station_count = assoc_station_count
+        oq.depth_phase_count = depth_phase_count
+        oq.ground_truth_level = gt_level
+        oq.minimum_distance = kilometer2degrees(min_dist)
+        oq.maximum_distance = kilometer2degrees(max_dist)
+        oq.median_distance = kilometer2degrees(med_dist)
+
+    ou.confidence_level = 68  # NonLinLoc in general uses 1-sigma (68%) level
 
     # go through all phase info lines
     for line in phases_lines:
